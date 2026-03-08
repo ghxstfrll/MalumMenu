@@ -432,4 +432,151 @@ public static class MalumCheats
             AmongUsClient.Instance.LateBroadcastReliableMessage(Unsafe.As<IGameDataMessage>(rpcMessage));
         }
     }
+
+    // Helper for one-shot target selection
+    private static PlayerControl GetSomeOtherPlayer()
+    {
+        var others = PlayerControl.AllPlayerControls.Where(p => p != PlayerControl.LocalPlayer && p != null).ToList();
+        return others.Count > 0 ? others[UnityEngine.Random.Range(0, others.Count)] : null;
+    }
+
+    public static void HandleSickoCheats()
+    {
+        if (CheatToggles.rotateEveryone)
+        {
+            // Rotate all players around LocalPlayer
+            foreach (var player in PlayerControl.AllPlayerControls)
+            {
+                if (player != PlayerControl.LocalPlayer)
+                {
+                    var pos = player.transform.position;
+                    var center = PlayerControl.LocalPlayer.transform.position;
+                    var offset = pos - center;
+                    var rotated = new Vector3(-offset.y, offset.x, offset.z);
+                    player.transform.position = center + rotated;
+                }
+            }
+            CheatToggles.rotateEveryone = false;
+        }
+        if (CheatToggles.suicideAllCrew)
+        {
+            foreach (var player in PlayerControl.AllPlayerControls)
+            {
+                if (player.Data.Role.TeamType == RoleTeamTypes.Crewmate)
+                    Utils.MurderPlayer(player, MurderResultFlags.Succeeded);
+            }
+            CheatToggles.suicideAllCrew = false;
+        }
+        if (CheatToggles.suicideAllImps)
+        {
+            foreach (var player in PlayerControl.AllPlayerControls)
+            {
+                if (player.Data.Role.TeamType == RoleTeamTypes.Impostor)
+                    Utils.MurderPlayer(player, MurderResultFlags.Succeeded);
+            }
+            CheatToggles.suicideAllImps = false;
+        }
+        if (CheatToggles.scanEveryone)
+        {
+            foreach (var player in PlayerControl.AllPlayerControls)
+                Utils.ForceSetScanner(player, true);
+            CheatToggles.scanEveryone = false;
+        }
+        if (CheatToggles.stopScanEveryone)
+        {
+            foreach (var player in PlayerControl.AllPlayerControls)
+                Utils.ForceSetScanner(player, false);
+            CheatToggles.stopScanEveryone = false;
+        }
+        if (CheatToggles.bypassGuardianAngel)
+        {
+            foreach (var player in PlayerControl.AllPlayerControls)
+                player.protectedByGuardianId = -1;
+            CheatToggles.bypassGuardianAngel = false;
+        }
+        if (CheatToggles.disableLobbyMusic)
+        {
+            if (DestroyableSingleton<HudManager>.Instance != null)
+                DestroyableSingleton<HudManager>.Instance.StopMusic();
+            CheatToggles.disableLobbyMusic = false;
+        }
+        if (CheatToggles.disableKillAnimation)
+        {
+            // this flag is used by PlayerControl_MurderPlayer patch to teleport killer back
+            // actual work is done in PlayerControlPatches
+            // The toggle is cleared after the patch runs
+        }
+        if (CheatToggles.randomizeAppearance)
+        {
+            foreach (var player in PlayerControl.AllPlayerControls)
+                Utils.RandomizeAppearance(player);
+            CheatToggles.randomizeAppearance = false;
+        }
+        if (CheatToggles.cycleAppearance)
+        {
+            foreach (var player in PlayerControl.AllPlayerControls)
+                Utils.CycleAppearance(player);
+            CheatToggles.cycleAppearance = false;
+        }
+        if (CheatToggles.impersonatePlayer)
+        {
+            var other = GetSomeOtherPlayer();
+            if (other != null)
+            {
+                // copy name and cosmetics
+                PlayerControl.LocalPlayer.Data.PlayerName = other.Data.PlayerName;
+                Utils.CopyCosmetics(other, PlayerControl.LocalPlayer);
+                ConsoleUI.Log($"Impersonated {other.Data.PlayerName}");
+            }
+            CheatToggles.impersonatePlayer = false;
+        }
+        if (CheatToggles.cosmeticsStealer)
+        {
+            var other = GetSomeOtherPlayer();
+            if (other != null)
+            {
+                Utils.CopyCosmetics(other, PlayerControl.LocalPlayer);
+                ConsoleUI.Log($"Stole cosmetics from {other.Data.PlayerName}");
+            }
+            CheatToggles.cosmeticsStealer = false;
+        }
+        if (CheatToggles.cosmeticsResetter)
+        {
+            Utils.ResetCosmetics(PlayerControl.LocalPlayer);
+            ConsoleUI.Log("Reset cosmetics to default");
+            CheatToggles.cosmeticsResetter = false;
+        }
+        if (CheatToggles.forceNameEveryone)
+        {
+            foreach (var player in PlayerControl.AllPlayerControls)
+                player.Data.PlayerName = "Sicko";
+            CheatToggles.forceNameEveryone = false;
+        }
+        if (CheatToggles.forceColorEveryone)
+        {
+            foreach (var player in PlayerControl.AllPlayerControls)
+                player.CurrentOutfit.ColorId = PlayerControl.LocalPlayer.CurrentOutfit.ColorId;
+            CheatToggles.forceColorEveryone = false;
+        }
+        if (CheatToggles.forceLevelEveryone)
+        {
+            foreach (var player in PlayerControl.AllPlayerControls)
+                player.Data.PlayerLevel = PlayerControl.LocalPlayer.Data.PlayerLevel;
+            CheatToggles.forceLevelEveryone = false;
+        }
+        if (CheatToggles.forceMeetingByPlayer)
+        {
+            var other = GetSomeOtherPlayer();
+            if (other != null)
+            {
+                HudManager.Instance.Notifier.AddGameMessage($"Meeting forced by {other.Data.PlayerName}");
+                if (Utils.isHost)
+                    PlayerControl.LocalPlayer.RpcStartMeeting(null);
+                else
+                    PlayerControl.LocalPlayer.CmdReportDeadBody(null);
+            }
+            CheatToggles.forceMeetingByPlayer = false;
+        }
+        // chat-related toggles are handled in ChatController_AddChat patch so we just clear them there
+    }
 }
