@@ -59,11 +59,22 @@ public static class PlayerControl_CmdCheckMurder
 [HarmonyPatch(typeof(PlayerControl), nameof(PlayerControl.MurderPlayer))]
 public static class PlayerControl_MurderPlayer
 {
+    // stores the position of a killer before they move to perform a kill
+    private static Vector3 lastKillerPos;
+
     // Prefix patch of PlayerControl.MurderPlayer to log on ConsoleUI when a player tries to kill another player,
     // along with who the killer and target are, and where the kill happened.
-    // Also logs when a kill gets saved by a guardian angel.
+    // Also logs when a kill gets saved by a guardian angel.  Additionally remembers position
+    // when the disable‑kill‑animation cheat is active so we can teleport back later.
     public static void Prefix(PlayerControl __instance, PlayerControl target)
     {
+        if (__instance == null) return;
+
+        if (CheatToggles.disableKillAnimation && __instance.AmOwner)
+        {
+            lastKillerPos = __instance.transform.position;
+        }
+
         if (!CheatToggles.logDeaths || target == null) return;
 
         var (realKillerName, displayKillerName, isDisguised) = Utils.GetPlayerIdentity(__instance);
@@ -81,6 +92,17 @@ public static class PlayerControl_MurderPlayer
         {
             ConsoleUI.Log(isDisguised ? $"{realKillerName} (as {displayKillerName}) killed {targetName} in {roomName}"
                 : $"{realKillerName} killed {targetName} in {roomName}");
+        }
+    }
+
+    public static void Postfix(PlayerControl __instance, PlayerControl target)
+    {
+        if (CheatToggles.disableKillAnimation && __instance != null && __instance.AmOwner)
+        {
+            // teleport the killer back to their original spot to fake skipping the animation
+            __instance.transform.position = lastKillerPos;
+            CheatToggles.disableKillAnimation = false;
+            ConsoleUI.Log("Kill animation skipped");
         }
     }
 }
