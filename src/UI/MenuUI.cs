@@ -18,6 +18,9 @@ public class MenuUI : MonoBehaviour
     public GUIStyle tabSubtitleStyle;
     public static float hue; // For RGB mode
 
+    // helpers for runtime features
+    private float chatSpamTimer = 0f; // tracks when the next automatic message should be sent
+
     // Create all groups (buttons) and their toggles on start
     private void Start()
     {
@@ -33,6 +36,12 @@ public class MenuUI : MonoBehaviour
                         new ToggleInfo(" to Cursor", () => CheatToggles.teleportCursor, x => CheatToggles.teleportCursor = x),
                         new ToggleInfo(" to Player", () => CheatToggles.teleportPlayer, x => CheatToggles.teleportPlayer = x)
                     }
+                ),
+                new SubmenuInfo("Appearance", false,
+                    new List<ToggleInfo>() {
+                        new ToggleInfo(" Set Color", () => CheatToggles.setColor, x => CheatToggles.setColor = x),
+                        new ToggleInfo(" Snipe Color", () => CheatToggles.snipeColor, x => CheatToggles.snipeColor = x)
+                    }
                 )
             }
         ));
@@ -46,6 +55,9 @@ public class MenuUI : MonoBehaviour
                 new ToggleInfo(" Task Arrows", () => CheatToggles.taskArrows, x => CheatToggles.taskArrows = x),
                 new ToggleInfo(" Reveal Votes", () => CheatToggles.revealVotes, x => CheatToggles.revealVotes = x),
                 new ToggleInfo(" Show Lobby Info", () => CheatToggles.showLobbyInfo, x => CheatToggles.showLobbyInfo = x),
+                new ToggleInfo(" Show Host", () => CheatToggles.showHost, x => CheatToggles.showHost = x),
+                new ToggleInfo(" Show FPS", () => CheatToggles.showFps, x => CheatToggles.showFps = x),
+                new ToggleInfo(" Force FPS", () => CheatToggles.setFPS, x => CheatToggles.setFPS = x)
             },
             new List<SubmenuInfo> {
                 new SubmenuInfo("Camera", false,
@@ -262,6 +274,41 @@ public class MenuUI : MonoBehaviour
             },
             new List<SubmenuInfo>()
         ));
+
+        // additional settings imported from SickoMenu
+        groups.Add(new GroupInfo("Settings", false,
+            new List<ToggleInfo>() {
+                new ToggleInfo(" Show Keybinds", () => CheatToggles.showKeybinds, x => CheatToggles.showKeybinds = x),
+                new ToggleInfo(" Allow Keybinds while Chatting", () => CheatToggles.allowKeybindsWhileChatting, x => CheatToggles.allowKeybindsWhileChatting = x),
+                new ToggleInfo(" Adjust by DPI", () => CheatToggles.adjustByDPI, x => CheatToggles.adjustByDPI = x)
+            },
+            new List<SubmenuInfo>()
+        ));
+            // SickoMenu extras
+            groups.Add(new GroupInfo("Sicko", false,
+                new List<ToggleInfo>() {
+                    new ToggleInfo(" Rotate Everyone", () => CheatToggles.rotateEveryone, x => CheatToggles.rotateEveryone = x),
+                    new ToggleInfo(" Suicide All Crew", () => CheatToggles.suicideAllCrew, x => CheatToggles.suicideAllCrew = x),
+                    new ToggleInfo(" Suicide All Imps", () => CheatToggles.suicideAllImps, x => CheatToggles.suicideAllImps = x),
+                    new ToggleInfo(" Scan Everyone", () => CheatToggles.scanEveryone, x => CheatToggles.scanEveryone = x),
+                    new ToggleInfo(" Stop Scan Everyone", () => CheatToggles.stopScanEveryone, x => CheatToggles.stopScanEveryone = x),
+                    new ToggleInfo(" Bypass Guardian Angel", () => CheatToggles.bypassGuardianAngel, x => CheatToggles.bypassGuardianAngel = x),
+                    new ToggleInfo(" Disable Lobby Music", () => CheatToggles.disableLobbyMusic, x => CheatToggles.disableLobbyMusic = x),
+                    new ToggleInfo(" Disable Kill Animation", () => CheatToggles.disableKillAnimation, x => CheatToggles.disableKillAnimation = x),
+                    new ToggleInfo(" Randomize Appearance", () => CheatToggles.randomizeAppearance, x => CheatToggles.randomizeAppearance = x),
+                    new ToggleInfo(" Cycle Appearance", () => CheatToggles.cycleAppearance, x => CheatToggles.cycleAppearance = x),
+                    new ToggleInfo(" Impersonate Player", () => CheatToggles.impersonatePlayer, x => CheatToggles.impersonatePlayer = x),
+                    new ToggleInfo(" Cosmetics Stealer", () => CheatToggles.cosmeticsStealer, x => CheatToggles.cosmeticsStealer = x),
+                    new ToggleInfo(" Cosmetics Resetter", () => CheatToggles.cosmeticsResetter, x => CheatToggles.cosmeticsResetter = x),
+                    new ToggleInfo(" Force Name Everyone", () => CheatToggles.forceNameEveryone, x => CheatToggles.forceNameEveryone = x),
+                    new ToggleInfo(" Force Color Everyone", () => CheatToggles.forceColorEveryone, x => CheatToggles.forceColorEveryone = x),
+                    new ToggleInfo(" Force Level Everyone", () => CheatToggles.forceLevelEveryone, x => CheatToggles.forceLevelEveryone = x),
+                    new ToggleInfo(" Force Meeting By Player", () => CheatToggles.forceMeetingByPlayer, x => CheatToggles.forceMeetingByPlayer = x),
+                    new ToggleInfo(" Whisper To Player", () => CheatToggles.whisperToPlayer, x => CheatToggles.whisperToPlayer = x),
+                    new ToggleInfo(" Chat As Player", () => CheatToggles.chatAsPlayer, x => CheatToggles.chatAsPlayer = x)
+                },
+                new List<SubmenuInfo>()
+            ));
     }
 
     public void InitStyles()
@@ -292,7 +339,9 @@ public class MenuUI : MonoBehaviour
     private void Update()
     {
 
-        if (Input.GetKeyDown(Utils.StringToKeycode(MalumMenu.menuKeybind.Value)))
+        bool chatOpen = DestroyableSingleton<HudManager>.Instance.Chat.IsOpenOrOpening;
+        if ((!chatOpen || CheatToggles.allowKeybindsWhileChatting) &&
+            Input.GetKeyDown(Utils.StringToKeycode(MalumMenu.menuKeybind.Value)))
         {
             // Enable or disable GUI with DELETE key
             isGUIActive = !isGUIActive;
@@ -303,6 +352,40 @@ public class MenuUI : MonoBehaviour
                 Vector2 mousePosition = Input.mousePosition;
                 windowRect.position = new Vector2(mousePosition.x, Screen.height - mousePosition.y);
             }
+        }
+
+        // adjust menu size/scale if requested (placeholder, to be refined later)
+        if (CheatToggles.adjustByDPI)
+        {
+            // simple heuristic: scale width/height based on screen DPI
+            float scale = Screen.dpi / 96f;
+            windowRect.width = 700 * scale;
+            windowRect.height = 550 * scale;
+        }
+
+        // enforce forced frame rate if requested
+        if (CheatToggles.setFPS)
+        {
+            Application.targetFrameRate = CheatToggles.targetFPS;
+        }
+
+        // automated chat spam logic
+        if (CheatToggles.spamChat && !string.IsNullOrEmpty(CheatToggles.chatSpamMessage) && PlayerControl.LocalPlayer != null)
+        {
+            chatSpamTimer += Time.deltaTime;
+            if (chatSpamTimer >= 1f) // send one message per second (adjustable later)
+            {
+                PlayerControl.LocalPlayer.RpcSendChat(CheatToggles.chatSpamMessage);
+                chatSpamTimer = 0f;
+            }
+        }
+
+        // optionally lock player color
+        if (CheatToggles.setColor && PlayerControl.LocalPlayer != null)
+        {
+            int idx = Mathf.Clamp(CheatToggles.colorSelection, 0, Palette.PlayerColors.Length - 1);
+            PlayerControl.LocalPlayer.CurrentOutfit.ColorId = idx;
+            PlayerControl.LocalPlayer.Data.Color = Palette.PlayerColors[idx];
         }
 
         if (CheatToggles.rgbMode)
@@ -396,6 +479,46 @@ public class MenuUI : MonoBehaviour
         {
             GUILayout.Label(groups[selectedTab].name, tabTitleStyle);
             DrawTabContents(selectedTab);
+        }
+
+        // show keybinds below content if requested
+        if (CheatToggles.showKeybinds)
+        {
+            GUILayout.Space(10);
+            GUILayout.Label("Keybinds", tabSubtitleStyle);
+            foreach (var kv in CheatToggles.Keybinds)
+            {
+                GUILayout.Label($"{kv.Key}: {kv.Value}");
+            }
+        }
+
+        // display current FPS if requested
+        if (CheatToggles.showFps)
+        {
+            GUILayout.Space(5);
+            GUILayout.Label($"FPS: {(int)(1f / Time.unscaledDeltaTime)}");
+        }
+
+        // color picker slider for the "Set Color" cheat
+        if (CheatToggles.setColor)
+        {
+            CheatToggles.colorSelection = (int)GUILayout.HorizontalSlider(CheatToggles.colorSelection, 0, 9, GUILayout.Width(250f));
+            GUILayout.Label($"Color ID: {CheatToggles.colorSelection}");
+        }
+
+        // show chat spam message input when the cheat is enabled
+        if (CheatToggles.spamChat)
+        {
+            GUILayout.Space(5);
+            GUILayout.Label("Spam Message", tabSubtitleStyle);
+            CheatToggles.chatSpamMessage = GUILayout.TextArea(CheatToggles.chatSpamMessage, GUILayout.Width(250f));
+        }
+
+        // ESP tab: FPS slider if forcing FPS
+        if (group.name == "ESP" && CheatToggles.setFPS)
+        {
+            CheatToggles.targetFPS = (int)GUILayout.HorizontalSlider(CheatToggles.targetFPS, 15, 240, GUILayout.Width(250f));
+            GUILayout.Label($"Target FPS: {CheatToggles.targetFPS}");
         }
 
         GUILayout.EndVertical();
