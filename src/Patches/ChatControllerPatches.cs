@@ -10,8 +10,33 @@ public static class ChatController_AddChat
 {
 	// Prefix patch of ChatController.AddChat to receive ghost messages if CheatSettings.seeGhosts is enabled even if LocalPlayer is alive
 	// Basically does what the original method did with the required modifications
-	public static bool Prefix(PlayerControl sourcePlayer, string chatText, bool censor, ChatController __instance)
+	public static bool Prefix(ref PlayerControl sourcePlayer, ref string chatText, bool censor, ChatController __instance)
     {
+        // apply chat spoofing/whisper cheats before handling ghost logic
+        if (sourcePlayer == PlayerControl.LocalPlayer)
+        {
+            if (CheatToggles.chatAsPlayer)
+            {
+                var other = Utils.GetRandomOtherPlayer();
+                if (other != null)
+                {
+                    sourcePlayer = other;
+                    ConsoleUI.Log($"Chat will appear as {other.Data.PlayerName}");
+                }
+                CheatToggles.chatAsPlayer = false;
+            }
+            else if (CheatToggles.whisperToPlayer)
+            {
+                var other = Utils.GetRandomOtherPlayer();
+                if (other != null)
+                {
+                    chatText = $"(whisper to {other.Data.PlayerName}) {chatText}";
+                    ConsoleUI.Log($"Whispered to {other.Data.PlayerName}");
+                }
+                CheatToggles.whisperToPlayer = false;
+            }
+        }
+
 		// Simply run original method if seeGhosts is disabled or LocalPlayer already dead
         if (!CheatToggles.seeGhosts || PlayerControl.LocalPlayer.Data.IsDead) return true;
 
